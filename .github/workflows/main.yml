@@ -108,3 +108,13 @@ jobs:
           body: "Universal package and architecture-specific packages for Florida Server ${{env.LATESTFLORIDARELEASETAG}}"
           generateReleaseNotes: false
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload ZIPs as workflow artifacts
+        if: steps.check_release.outputs.should_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Magisk-Florida-${{ env.LATESTFLORIDARELEASETAG }}
+          path: |
+            ./*.zip
+            update.json
+          if-no-files-found: error
+          retention-days: 30
