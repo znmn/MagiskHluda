@@ -214,6 +214,6 @@ void utils::createUpdateJson()
         << "  \"versionCode\": " << versionCode << ",\n"
         << R"(  "zipUrl": "https://github.com/)" << repo << "/releases/download/"
         << latestTag << "/Magisk-Florida-Universal-" << latestTag << ".zip\",\n"
-        << R"(  "changelog": "https://gist.githubusercontent.com/Exo1i/22b6b1aa3a78d421f30410bc1bf24212/raw/0ad35b77c347748a311a004b9e5a558bf97bf357/gistfile1.txt")"
+        << R"(  "changelog": "https://gist.githubusercontent.com/znmn/d18d6bcbb4a8a0dbfe24e243c19b4195/raw/077a548931b8101c31722bc52b1a34b4bbf206c0/gistfile1.txt")"
         << "\n}\n";
 }
