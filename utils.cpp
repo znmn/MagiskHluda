@@ -15,25 +15,62 @@ const std::string basePath = "./module_template/";
 
 std::string utils::getRecentTag()
 {
-    const std::string url = "https://api.github.com/repos/hzzheyang/strongR-frida-android/releases/latest";
+    // Fetch recent releases from ylarod/Florida and find one that actually has server assets
+    const std::string url = "https://api.github.com/repos/Ylarod/Florida/releases?per_page=10";
     RestClient::Response response = RestClient::get(url);
 
     if (response.code != 200)
     {
-        throw std::runtime_error("HTTP Error: " + std::to_string(response.code) + " " + response.body);
+        throw std::runtime_error("HTTP Error fetching releases: " + std::to_string(response.code) + " " + response.body);
     }
 
     rapidjson::Document d;
     d.Parse(response.body.c_str());
 
-    if (!d.HasMember("tag_name") || !d["tag_name"].IsString())
+    if (!d.IsArray() || d.Empty())
     {
-        throw std::runtime_error("Invalid JSON response: missing or invalid 'tag_name'");
+        throw std::runtime_error("Invalid JSON response: expected non-empty array of releases");
     }
 
-    std::string tag = d["tag_name"].GetString();
-    std::ofstream("currentTag.txt") << tag;
-    return tag;
+    // Iterate through releases to find one with florida-server assets
+    for (rapidjson::SizeType i = 0; i < d.Size(); ++i)
+    {
+        const auto& release = d[i];
+        if (!release.HasMember("tag_name") || !release["tag_name"].IsString())
+            continue;
+        if (!release.HasMember("assets") || !release["assets"].IsArray())
+            continue;
+
+        const auto& assets = release["assets"];
+        bool hasServerAssets = false;
+        for (rapidjson::SizeType j = 0; j < assets.Size(); ++j)
+        {
+            if (assets[j].HasMember("name") && assets[j]["name"].IsString())
+            {
+                std::string assetName = assets[j]["name"].GetString();
+                if (assetName.find("florida-server-") != std::string::npos)
+                {
+                    hasServerAssets = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasServerAssets)
+        {
+            std::string tag = release["tag_name"].GetString();
+            std::cout << "Found release with server assets: " << tag << std::endl;
+            std::ofstream("currentTag.txt") << tag;
+            return tag;
+        }
+        else
+        {
+            std::string skippedTag = release["tag_name"].GetString();
+            std::cout << "Skipping release " << skippedTag << " (no server assets)" << std::endl;
+        }
+    }
+
+    throw std::runtime_error("No recent release found with florida-server assets");
 }
 
 void download(const std::string& aarch)
@@ -42,7 +79,7 @@ void download(const std::string& aarch)
 
     std::cout << "Starting To Downloaded florida for arch: " + aarch + "\n";
 
-    std::string url = "https://github.com/ylarod/florida/releases/download/" + utils::latestTag +
+    std::string url = "https://github.com/Ylarod/Florida/releases/download/" + utils::latestTag +
         "/florida-server-" + utils::latestTag + "-android-" + aarch + ".gz";
 
     std::unique_ptr<RestClient::Connection> pConnection(new RestClient::Connection(url));

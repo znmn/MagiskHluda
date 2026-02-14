@@ -13,7 +13,7 @@ jobs:
       - name: Fetch release info
         run: |
           sudo apt install jq
-          LATESTFLORIDARELEASETAG=$(curl -s https://api.github.com/repos/hzzheyang/strongR-frida-android/releases/latest | jq -r '.tag_name')
+          LATESTFLORIDARELEASETAG=$(curl -s https://api.github.com/repos/Ylarod/Florida/releases | jq -r '[.[] | select(.assets | length > 0)][0].tag_name')
           LATESTMODULETAG=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
           echo "LATESTFLORIDARELEASETAG=${LATESTFLORIDARELEASETAG}" >> $GITHUB_ENV
           echo "LATESTMODULETAG=${LATESTMODULETAG}" >> $GITHUB_ENV
@@ -61,7 +61,7 @@ jobs:
         if: steps.check_release.outputs.should_release == 'true'
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
       - name: Bundle webpage with Vite
         if: steps.check_release.outputs.should_release == 'true'
         run: |
@@ -70,10 +70,10 @@ jobs:
             echo "Error: webroot directory not found in the repository"
             exit 1
           fi
-          
+
           # Create webroot directory in module_template if it doesn't exist
           mkdir -p module_template/webroot
-          
+
           # Run Vite build directly with npx
           cd webroot
           npm i
@@ -89,7 +89,7 @@ jobs:
             cp "bin/$FILENAME" "arch_release_$arch/bin/"
             (cd "arch_release_$arch" && zip -r "../Magisk-Florida-$arch-$LATESTFLORIDARELEASETAG.zip" .)
           done
-          
+
           # Universal package
           mkdir -p universal_release
           cp -r module_template/* universal_release/
