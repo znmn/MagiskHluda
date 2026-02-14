@@ -2,11 +2,20 @@
 #include <iostream>
 #include "restclient-cpp/restclient.h"
 
-std::string utils::latestTag = utils::getRecentTag();
+std::string utils::latestTag;
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
         RestClient::init();
+
+        // Accept optional version argument: ./MagiskHluda [version]
+        std::string preferredVersion = "";
+        if (argc > 1) {
+            preferredVersion = argv[1];
+        }
+
+        utils::latestTag = utils::getRecentTag(preferredVersion);
+
         utils::createModuleProps();
         utils::createUpdateJson();
         utils::downloadServers();

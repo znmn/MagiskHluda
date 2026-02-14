@@ -16,7 +16,7 @@ public:
 
     static void createModuleProps();
 
-    static string getRecentTag();
+    static string getRecentTag(const string& preferredVersion = "");
 
 
     static void downloadServers();

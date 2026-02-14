@@ -1,6 +1,12 @@
 name: CI
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Specific Florida version to build (e.g. 17.6.2). Leave empty to auto-detect latest."
+        required: false
+        default: ""
+        type: string
   schedule:
     - cron: "0 */12 * * *"
 permissions:
@@ -13,16 +19,28 @@ jobs:
       - name: Fetch release info
         run: |
           sudo apt install jq
-          LATESTFLORIDARELEASETAG=$(curl -s https://api.github.com/repos/Ylarod/Florida/releases | jq -r '[.[] | select(.assets | length > 0)][0].tag_name')
+          # If a manual version is provided, use it directly; otherwise auto-detect
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            LATESTFLORIDARELEASETAG="${{ github.event.inputs.version }}"
+            echo "Manual version specified: ${LATESTFLORIDARELEASETAG}"
+          else
+            LATESTFLORIDARELEASETAG=$(curl -s https://api.github.com/repos/Ylarod/Florida/releases | jq -r '[.[] | select(.assets | length > 0)][0].tag_name')
+            echo "Auto-detected version: ${LATESTFLORIDARELEASETAG}"
+          fi
           LATESTMODULETAG=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
           echo "LATESTFLORIDARELEASETAG=${LATESTFLORIDARELEASETAG}" >> $GITHUB_ENV
           echo "LATESTMODULETAG=${LATESTMODULETAG}" >> $GITHUB_ENV
+          echo "MANUAL_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
       - name: Check if release needed
         id: check_release
         run: |
-          if [ "${{ env.LATESTFLORIDARELEASETAG }}" != "${{ env.LATESTMODULETAG }}" ] && \
-             [ "${{ env.LATESTFLORIDARELEASETAG }}" != "null" ] && \
-             [ "${{ env.LATESTMODULETAG }}" != "null" ]; then
+          # If manual version is provided, always release (force build)
+          if [ -n "${{ env.MANUAL_VERSION }}" ]; then
+            echo "Manual version provided, forcing release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [ "${{ env.LATESTFLORIDARELEASETAG }}" != "${{ env.LATESTMODULETAG }}" ] && \
+               [ "${{ env.LATESTFLORIDARELEASETAG }}" != "null" ] && \
+               [ "${{ env.LATESTMODULETAG }}" != "null" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
           else
             echo "should_release=false" >> $GITHUB_OUTPUT
@@ -55,7 +73,12 @@ jobs:
           cp build/MagiskHluda .
       - name: Download all Florida servers from ylarod's repo
         if: steps.check_release.outputs.should_release == 'true'
-        run: ./MagiskHluda
+        run: |
+          if [ -n "${{ env.MANUAL_VERSION }}" ]; then
+            ./MagiskHluda "${{ env.MANUAL_VERSION }}"
+          else
+            ./MagiskHluda
+          fi
 
       - name: Set up Node.js
         if: steps.check_release.outputs.should_release == 'true'

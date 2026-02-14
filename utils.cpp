@@ -13,9 +13,59 @@
 namespace fs = std::filesystem;
 const std::string basePath = "./module_template/";
 
-std::string utils::getRecentTag()
+// Helper: checks if a release JSON object has florida-server assets
+static bool hasServerAssets(const rapidjson::Value& release)
 {
-    // Fetch recent releases from ylarod/Florida and find one that actually has server assets
+    if (!release.HasMember("assets") || !release["assets"].IsArray())
+        return false;
+
+    const auto& assets = release["assets"];
+    for (rapidjson::SizeType j = 0; j < assets.Size(); ++j)
+    {
+        if (assets[j].HasMember("name") && assets[j]["name"].IsString())
+        {
+            std::string assetName = assets[j]["name"].GetString();
+            if (assetName.find("florida-server-") != std::string::npos)
+                return true;
+        }
+    }
+    return false;
+}
+
+std::string utils::getRecentTag(const std::string& preferredVersion)
+{
+    // If a preferred version was given, try it first
+    if (!preferredVersion.empty())
+    {
+        std::cout << "Preferred version specified: " << preferredVersion << std::endl;
+
+        const std::string url = "https://api.github.com/repos/Ylarod/Florida/releases/tags/" + preferredVersion;
+        RestClient::Response response = RestClient::get(url);
+
+        if (response.code == 200)
+        {
+            rapidjson::Document d;
+            d.Parse(response.body.c_str());
+
+            if (d.IsObject() && hasServerAssets(d))
+            {
+                std::cout << "Preferred version " << preferredVersion << " found with server assets!" << std::endl;
+                std::ofstream("currentTag.txt") << preferredVersion;
+                return preferredVersion;
+            }
+            else
+            {
+                std::cerr << "Warning: Version " << preferredVersion << " exists but has no server assets, falling back to auto-pick" << std::endl;
+            }
+        }
+        else
+        {
+            std::cerr << "Warning: Version " << preferredVersion << " not found (HTTP " << response.code << "), falling back to auto-pick" << std::endl;
+        }
+    }
+
+    // Auto-pick: fetch recent releases and find one with server assets
+    std::cout << "Auto-picking latest version with server assets..." << std::endl;
     const std::string url = "https://api.github.com/repos/Ylarod/Florida/releases?per_page=10";
     RestClient::Response response = RestClient::get(url);
 
@@ -38,25 +88,8 @@ std::string utils::getRecentTag()
         const auto& release = d[i];
         if (!release.HasMember("tag_name") || !release["tag_name"].IsString())
             continue;
-        if (!release.HasMember("assets") || !release["assets"].IsArray())
-            continue;
 
-        const auto& assets = release["assets"];
-        bool hasServerAssets = false;
-        for (rapidjson::SizeType j = 0; j < assets.Size(); ++j)
-        {
-            if (assets[j].HasMember("name") && assets[j]["name"].IsString())
-            {
-                std::string assetName = assets[j]["name"].GetString();
-                if (assetName.find("florida-server-") != std::string::npos)
-                {
-                    hasServerAssets = true;
-                    break;
-                }
-            }
-        }
-
-        if (hasServerAssets)
+        if (hasServerAssets(release))
         {
             std::string tag = release["tag_name"].GetString();
             std::cout << "Found release with server assets: " << tag << std::endl;
