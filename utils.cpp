@@ -9,9 +9,16 @@
 #include "restclient-cpp/restclient.h"
 #include "rapidjson/document.h"
 #include "utils.h"
+#include <cstdlib>
 
 namespace fs = std::filesystem;
 const std::string basePath = "./module_template/";
+
+static std::string getEnvOrDefault(const char* name, const std::string& fallback)
+{
+    const char* val = std::getenv(name);
+    return (val && val[0] != '\0') ? std::string(val) : fallback;
+}
 
 // Helper: checks if a release JSON object has florida-server assets
 static bool hasServerAssets(const rapidjson::Value& release)
@@ -177,13 +184,16 @@ void utils::createModuleProps()
 
     string versionCode = latestTag;
     versionCode.erase(std::remove(versionCode.begin(), versionCode.end(), '.'), versionCode.end());
+    std::string repo = getEnvOrDefault("GITHUB_REPOSITORY", "znmn/magiskhluda");
+    std::string author = getEnvOrDefault("GITHUB_ACTOR", "The Community");
+
     moduleProps << "id=magisk-hluda\n"
         << "name=Frida(Florida) Server on Boot\n"
         << "version=" << latestTag.substr(0, latestTag.find('-')) << '\n'
         << "versionCode=" << versionCode << '\n'
-        << "author=The Community - Ylarod - Exo1i\n"
+        << "author=" << author << " - Ylarod - Exo1i\n"
         << "description=Runs a stealthier frida-server on boot\n"
-        << "updateJson=https://github.com/exo1i/magiskhluda/releases/latest/download/update.json";
+        << "updateJson=https://github.com/" << repo << "/releases/latest/download/update.json";
 }
 
 void utils::createUpdateJson()
@@ -197,10 +207,12 @@ void utils::createUpdateJson()
         throw std::runtime_error("Failed to open update.json for writing");
     }
 
+    std::string repo = getEnvOrDefault("GITHUB_REPOSITORY", "znmn/magiskhluda");
+
     updateJson << "{\n"
         << R"(  "version": ")" << latestTag << "\",\n"
         << "  \"versionCode\": " << versionCode << ",\n"
-        << R"(  "zipUrl": "https://github.com/exo1i/magiskhluda/releases/download/)"
+        << R"(  "zipUrl": "https://github.com/)" << repo << "/releases/download/"
         << latestTag << "/Magisk-Florida-Universal-" << latestTag << ".zip\",\n"
         << R"(  "changelog": "https://gist.githubusercontent.com/Exo1i/22b6b1aa3a78d421f30410bc1bf24212/raw/0ad35b77c347748a311a004b9e5a558bf97bf357/gistfile1.txt")"
         << "\n}\n";
