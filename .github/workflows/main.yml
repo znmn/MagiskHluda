@@ -7,8 +7,8 @@ on:
         required: false
         default: ""
         type: string
-  schedule:
-    - cron: "0 */12 * * *"
+  # schedule:
+    # - cron: "0 */12 * * *"
 permissions:
   contents: write
 jobs:
